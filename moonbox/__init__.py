@@ -1,5 +1,6 @@
 import requests
 import json
+import datetime
 
 
 def get_oneday():
@@ -56,4 +57,36 @@ def parse_celnav(content):
         "altitude": moon["almanac_data"]["hc"],
         "illumination": data["properties"]["moon_illum"],
         "phase": data["properties"]["moon_phase"],
+    }
+
+
+def get_phases():
+    url = "https://aa.usno.navy.mil/api/moon/phases/year"
+    params = {"year": "2024"}
+    request = requests.get(url, params=params)
+
+    if not request.status_code == 200:
+        raise RuntimeError()
+
+    return request.content
+
+
+def parse_phases(content):
+    data = json.loads(content)
+    phases = data["phasedata"]
+    assert len(phases) == data["numphases"]
+    # check year
+    # assert phases[0]['year'] ==
+    return [parse_phase(x) for x in phases]
+
+
+def parse_phase(x):
+    time_parts = x["time"].split(":")
+    assert len(time_parts) == 2
+    hour, minute = time_parts
+    return {
+        "phase": x["phase"],
+        "date": datetime.datetime(
+            x["year"], x["month"], x["day"], int(hour), int(minute)
+        ),
     }

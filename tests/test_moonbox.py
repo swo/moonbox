@@ -1,5 +1,5 @@
 import moonbox
-import json
+import datetime
 
 
 def test_parse_oneday():
@@ -28,4 +28,15 @@ def test_parse_celnav():
         "azimuth": 128.290209,
         "illumination": 32,
         "phase": "Waning Crescent",
+    }
+
+
+def test_parse_phases():
+    with open("tests/data/phases.json") as f:
+        content = f.read()
+
+    data = moonbox.parse_phases(content)
+    assert data[3] == {
+        "date": datetime.datetime(2024, 1, 25, 17, 54),
+        "phase": "Full Moon",
     }
