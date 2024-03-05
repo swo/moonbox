@@ -1,6 +1,7 @@
 import moonbox
 import json
 
+
 def test_parse_oneday():
     content = """
         {"apiversion": "4.0.1", "geometry": {"coordinates": [-77.035278, 38.889444],
@@ -15,4 +16,4 @@ def test_parse_oneday():
         "End Civil Twilight", "time": "18:32"}], "tz": -5.0, "year": 2024}}, "type": "Feature"}"""
     json.loads(content)
     data = moonbox.parse_oneday(content)
-    assert data == {'Rise': '03:27', 'Upper Transit': '07:53', 'Set': '12:21'}
+    assert data == {"Rise": "03:27", "Upper Transit": "07:53", "Set": "12:21"}
