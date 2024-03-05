@@ -14,6 +14,18 @@ def test_parse_oneday():
         "time": "06:07"}, {"phen": "Rise", "time": "06:34"}, {"phen": "Upper Transit",
         "time": "12:19"}, {"phen": "Set", "time": "18:06"}, {"phen":
         "End Civil Twilight", "time": "18:32"}], "tz": -5.0, "year": 2024}}, "type": "Feature"}"""
-    json.loads(content)
     data = moonbox.parse_oneday(content)
     assert data == {"Rise": "03:27", "Upper Transit": "07:53", "Set": "12:21"}
+
+
+def test_parse_celnav():
+    with open("tests/data/celnav.json") as f:
+        content = f.read()
+
+    data = moonbox.parse_celnav(content)
+    assert data == {
+        "altitude": 0.570058,
+        "azimuth": 128.290209,
+        "illumination": 32,
+        "phase": "Waning Crescent",
+    }
