@@ -45,8 +45,13 @@ def parse_oneday(data):
     times = {x["phen"]: x["time"] for x in phenomena}
 
     # also closest phase, current phase
+    phase = data["properties"]["data"]["curphase"]
 
-    return times
+    fracillum = data["properties"]["data"]["fracillum"]
+    assert fracillum[-1] == "%"
+    illumination = int(fracillum[0:-1])
+
+    return times | {"phase": phase, "illumination": illumination}
 
 
 def get_celnav(
@@ -63,9 +68,13 @@ def parse_celnav(data):
     # check the day, month, etc.
     # data['properties']['day']
 
-    moon = [
-        x for x in data["properties"]["data"] if "object" in x and x["object"] == "Moon"
-    ][0]
+    objects = data["properties"]["data"]
+    object_names = [x["object"] for x in objects]
+
+    if "Moon" not in object_names:
+        return None
+
+    moon = [x for x in objects if x["object"] == "Moon"][0]
 
     # results are in UTC
     assert data["properties"]["tz"] == 0

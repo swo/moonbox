@@ -6,7 +6,8 @@ import json
 
 @pytest.mark.slow
 def test_get_oneday():
-    moonbox.get_oneday()
+    data = moonbox.get_oneday()
+    moonbox.parse_oneday(data)
 
 
 def test_parse_oneday():
@@ -48,12 +49,26 @@ def test_parse_oneday():
         "type": "Feature",
     }
     data = moonbox.parse_oneday(content)
-    assert data == {"Rise": "03:27", "Upper Transit": "07:53", "Set": "12:21"}
+    assert data == {
+        "Rise": "03:27",
+        "Upper Transit": "07:53",
+        "Set": "12:21",
+        "illumination": 29,
+        "phase": "Waning Crescent",
+    }
 
 
 @pytest.mark.slow
 def test_get_celnav():
-    moonbox.get_celnav()
+    data = moonbox.get_celnav()
+    moonbox.parse_celnav(data)
+
+
+@pytest.mark.slow()
+def test_get_celnav_no_moon():
+    """When the moon is not up, no celnav data"""
+    data = moonbox.get_celnav(date="2024-03-07", time="3:40")
+    assert moonbox.parse_celnav(data) is None
 
 
 def test_parse_celnav():
@@ -71,7 +86,8 @@ def test_parse_celnav():
 
 @pytest.mark.slow
 def test_get_phases():
-    moonbox.get_phases()
+    data = moonbox.get_phases()
+    moonbox.parse_phases(data)
 
 
 def test_parse_phases():
