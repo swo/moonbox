@@ -3,24 +3,27 @@ import json
 import datetime
 
 
-def get_oneday():
-    url = "https://aa.usno.navy.mil/api/rstt/oneday"
-    params = {"date": "2024-03-05", "coords": "38.889444,-77.035278", "tz": -5}
+def get_usno(url, params):
     request = requests.get(url, params=params)
 
     if not request.status_code == 200:
         raise RuntimeError()
 
-    return request.content
+    return json.loads(request.content)
 
 
-def parse_oneday(content):
-    data = json.loads(content)
+def get_oneday():
+    url = "https://aa.usno.navy.mil/api/rstt/oneday"
+    params = {"date": "2024-03-05", "coords": "38.889444,-77.035278", "tz": -5}
+    return get_usno(url, params)
 
+
+def parse_oneday(data):
     # confirm that the date is what we would expect
     # content['properties']['data']['year'], 'month', 'day'
-
     phenomena = data["properties"]["data"]["moondata"]
+    assert type(phenomena) == list
+    assert type(phenomena[0]) == dict
     times = {x["phen"]: x["time"] for x in phenomena}
 
     # also closest phase, current phase
@@ -28,20 +31,19 @@ def parse_oneday(content):
     return times
 
 
-def get_celnav():
+def get_celnav(
+    when=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=0))),
+    coords="38.89,-77.03",
+):
     url = "https://aa.usno.navy.mil/api/celnav"
-    params = {"date": "2024-03-05", "time": "08:30", "coords": "38.89,-77.03"}
-    request = requests.get(url, params=params)
-
-    if not request.status_code == 200:
-        raise RuntimeError()
-
-    return request.content
+    date = when.strftime("%Y-%m-%d")
+    time = when.strftime("%H:%M")
+    params = {"date": date, "time": time, "coords": coords}
+    print(params)
+    return get_usno(url, params)
 
 
-def parse_celnav(content):
-    data = json.loads(content)
-
+def parse_celnav(data):
     # check the day, month, etc.
     # data['properties']['day']
 
@@ -63,16 +65,10 @@ def parse_celnav(content):
 def get_phases():
     url = "https://aa.usno.navy.mil/api/moon/phases/year"
     params = {"year": "2024"}
-    request = requests.get(url, params=params)
-
-    if not request.status_code == 200:
-        raise RuntimeError()
-
-    return request.content
+    return get_usno(url, params)
 
 
-def parse_phases(content):
-    data = json.loads(content)
+def parse_phases(data):
     phases = data["phasedata"]
     assert len(phases) == data["numphases"]
     # check year
