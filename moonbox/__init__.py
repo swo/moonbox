@@ -2,6 +2,24 @@ import requests
 import json
 import datetime
 
+"""Lat/long for Washington, DC"""
+coords_dc = "38.889444,-77.035278"
+
+
+def now() -> datetime.datetime:
+    """Current time in UTC"""
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=0)))
+
+
+def ymd(x: datetime.datetime) -> str:
+    """Format datetime as YYYY-MM-DD"""
+    return x.strftime("%Y-%m-%d")
+
+
+def hm(x: datetime.datetime) -> str:
+    """Format datetime as HH:MM"""
+    return x.strftime("%H:%M")
+
 
 def get_usno(url, params):
     request = requests.get(url, params=params)
@@ -12,9 +30,9 @@ def get_usno(url, params):
     return json.loads(request.content)
 
 
-def get_oneday():
+def get_oneday(date=ymd(now()), coords=coords_dc, tz=-5):
     url = "https://aa.usno.navy.mil/api/rstt/oneday"
-    params = {"date": "2024-03-05", "coords": "38.889444,-77.035278", "tz": -5}
+    params = {"date": date, "coords": coords, "tz": tz}
     return get_usno(url, params)
 
 
@@ -32,14 +50,12 @@ def parse_oneday(data):
 
 
 def get_celnav(
-    when=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=0))),
-    coords="38.89,-77.03",
+    date=ymd(now()),
+    time=hm(now()),
+    coords=coords_dc,
 ):
     url = "https://aa.usno.navy.mil/api/celnav"
-    date = when.strftime("%Y-%m-%d")
-    time = when.strftime("%H:%M")
     params = {"date": date, "time": time, "coords": coords}
-    print(params)
     return get_usno(url, params)
 
 
@@ -62,9 +78,9 @@ def parse_celnav(data):
     }
 
 
-def get_phases():
+def get_phases(year=now().year):
     url = "https://aa.usno.navy.mil/api/moon/phases/year"
-    params = {"year": "2024"}
+    params = {"year": str(year)}
     return get_usno(url, params)
 
 
