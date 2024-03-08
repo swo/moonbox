@@ -23,9 +23,7 @@ def hm(x: datetime.datetime) -> str:
 
 def get_usno(url, params):
     request = requests.get(url, params=params)
-
-    if not request.status_code == 200:
-        raise RuntimeError()
+    request.raise_for_status()
 
     return json.loads(request.content)
 
