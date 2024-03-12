@@ -1,6 +1,9 @@
 import requests
 import json
 import datetime
+import polars as pl
+import pymongo
+import multiprocessing
 
 """Lat/long for Washington, DC"""
 coords_dc = "38.889444,-77.035278"
@@ -109,3 +112,47 @@ def parse_phase(x):
             x["year"], x["month"], x["day"], int(hour), int(minute)
         ),
     }
+
+
+def cache_oneday_year(year=now().year):
+    """
+    Cache one year's worth of oneday data
+    """
+    client = pymongo.MongoClient()
+    db = client.moonbox_db
+    collection = db["oneday"]
+
+    dates = (
+        pl.select(pl.date_range(pl.date(year, 1, 1), pl.date(year, 12, 31)))
+        .to_series()
+        .to_list()
+    )
+
+    for date in dates:
+        if collection.find_one({"date": date.isoformat()}) is None:
+            print(date)
+            result = get_oneday(date.isoformat())
+            record = {"date": date.isoformat(), "result": result}
+            collection.insert_one(record)
+
+
+def get_oneday_year(year=now().year):
+    """
+    Get one year's wroth of oneday data, from the cache
+    """
+    client = pymongo.MongoClient()
+    db = client.moonbox_db
+    collection = db["oneday"]
+
+    dates = (
+        pl.select(pl.date_range(pl.date(year, 1, 1), pl.date(year, 12, 31)))
+        .to_series()
+        .to_list()
+    )
+
+    results = [collection.find_one({"date": date.isoformat()}) for date in dates]
+    data = [
+        {"date": date} | parse_oneday(x["result"]) for date, x in zip(dates, results)
+    ]
+
+    return data
