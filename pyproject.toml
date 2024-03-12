@@ -9,12 +9,26 @@ readme = "README.md"
 python = "^3.10"
 requests = "^2.31.0"
 pytest = "^8.0.2"
+matplotlib = "^3.8.3"
+pymongo = "^4.6.2"
+polars = "^0.20.15"
 
 
 [tool.poetry.group.dev.dependencies]
 bpython = "^0.24"
 pre-commit = "^3.6.2"
+importlib = "^1.0.4"
+
+
+[tool.poetry.group.scripts.dependencies]
+ipykernel = "^6.29.3"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "serial",
+]
