@@ -24,17 +24,21 @@ def hm(x: datetime.datetime) -> str:
     return x.strftime("%H:%M")
 
 
-def get_usno(url, params):
-    request = requests.get(url, params=params)
+def get_usno(url, params, session=None):
+    if session is None:
+        request = requests.get(url, params=params)
+    else:
+        request = session.get(url, params=params)
+
     request.raise_for_status()
 
     return json.loads(request.content)
 
 
-def get_oneday(date=ymd(now()), coords=coords_dc, tz=-5):
+def get_oneday(date=ymd(now()), coords=coords_dc, tz=-5, session=None):
     url = "https://aa.usno.navy.mil/api/rstt/oneday"
     params = {"date": date, "coords": coords, "tz": tz}
-    return get_usno(url, params)
+    return get_usno(url, params, session)
 
 
 def parse_oneday(data):
@@ -55,14 +59,10 @@ def parse_oneday(data):
     return times | {"phase": phase, "illumination": illumination}
 
 
-def get_celnav(
-    date=ymd(now()),
-    time=hm(now()),
-    coords=coords_dc,
-):
+def get_celnav(date=ymd(now()), time=hm(now()), coords=coords_dc, session=None):
     url = "https://aa.usno.navy.mil/api/celnav"
     params = {"date": date, "time": time, "coords": coords}
-    return get_usno(url, params)
+    return get_usno(url, params, session)
 
 
 def parse_celnav(data):
@@ -88,10 +88,10 @@ def parse_celnav(data):
     }
 
 
-def get_phases(year=now().year):
+def get_phases(year=now().year, session=None):
     url = "https://aa.usno.navy.mil/api/moon/phases/year"
     params = {"year": str(year)}
-    return get_usno(url, params)
+    return get_usno(url, params, session)
 
 
 def parse_phases(data):
@@ -112,47 +112,3 @@ def parse_phase(x):
             x["year"], x["month"], x["day"], int(hour), int(minute)
         ),
     }
-
-
-def cache_oneday_year(year=now().year):
-    """
-    Cache one year's worth of oneday data
-    """
-    client = pymongo.MongoClient()
-    db = client.moonbox_db
-    collection = db["oneday"]
-
-    dates = (
-        pl.select(pl.date_range(pl.date(year, 1, 1), pl.date(year, 12, 31)))
-        .to_series()
-        .to_list()
-    )
-
-    for date in dates:
-        if collection.find_one({"date": date.isoformat()}) is None:
-            print(date)
-            result = get_oneday(date.isoformat())
-            record = {"date": date.isoformat(), "result": result}
-            collection.insert_one(record)
-
-
-def get_oneday_year(year=now().year):
-    """
-    Get one year's wroth of oneday data, from the cache
-    """
-    client = pymongo.MongoClient()
-    db = client.moonbox_db
-    collection = db["oneday"]
-
-    dates = (
-        pl.select(pl.date_range(pl.date(year, 1, 1), pl.date(year, 12, 31)))
-        .to_series()
-        .to_list()
-    )
-
-    results = [collection.find_one({"date": date.isoformat()}) for date in dates]
-    data = [
-        {"date": date} | parse_oneday(x["result"]) for date, x in zip(dates, results)
-    ]
-
-    return data
