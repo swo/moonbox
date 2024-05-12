@@ -1,9 +1,6 @@
 import requests
 import json
 import datetime
-import polars as pl
-import pymongo
-import multiprocessing
 
 """Lat/long for Washington, DC"""
 coords_dc = "38.889444,-77.035278"
@@ -45,8 +42,8 @@ def parse_oneday(data):
     # confirm that the date is what we would expect
     # content['properties']['data']['year'], 'month', 'day'
     phenomena = data["properties"]["data"]["moondata"]
-    assert type(phenomena) == list
-    assert type(phenomena[0]) == dict
+    assert isinstance(phenomena, list)
+    assert isinstance(phenomena[0], dict)
     times = {x["phen"]: x["time"] for x in phenomena}
 
     # also closest phase, current phase
