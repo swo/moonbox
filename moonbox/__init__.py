@@ -1,6 +1,7 @@
 import requests
 import json
 import datetime
+import matplotlib.axes
 import matplotlib.patches as mpatches
 
 """Lat/long for Washington, DC"""
@@ -112,7 +113,17 @@ def parse_phase(x):
     }
 
 
-def draw_moon(axes, f, direction, light="white", dark="black", eps=1.25e-2):
+def draw_moon(
+    axes: matplotlib.axes.Axes,
+    x: float,
+    y: float,
+    radius: float,
+    f: float,
+    direction: str,
+    light: str = "white",
+    dark: str = "black",
+    eps: float = 1.25e-2,
+) -> None:
     """Draw a moon in arbitrary phase
 
     Note that, mathematically:
@@ -123,17 +134,15 @@ def draw_moon(axes, f, direction, light="white", dark="black", eps=1.25e-2):
 
     Args:
         axes (matplotlib.Axes): plot axes
+        x (float): x-coordinate of center
+        y (float): y-coordinate of center
+        radius (float): radius of moon
         f (float): fractional illumination
         direction (str): one of "waxing", "first", "waning", or "third"
         light (str): color of light pars of moon
         dark (str): color of dark parts of moon
         eps (float): fractional size reduction of "bottom" circle
     """
-    center = (0, 0)
-    radius = 0.9
-
-    axes.set(aspect=1, xlim=(-1.0, 1.0), ylim=(-1.0, 1.0))
-    axes.set_axis_off()
 
     if f == 0.0:
         back_color = dark
@@ -178,17 +187,15 @@ def draw_moon(axes, f, direction, light="white", dark="black", eps=1.25e-2):
     else:
         raise RuntimeError(f"bad values: f={f} direction={direction}")
 
-    back = mpatches.Circle(center, radius * (1.0 - eps), ec="none")
-    back.set(color=back_color)
+    center = (x, y)
+    back = mpatches.Circle(center, radius * (1.0 - eps), color=back_color)
     axes.add_artist(back)
 
     if half_side == "left":
-        half = mpatches.Wedge(center, radius, 90, 270, ec="none")
-        half.set(color=half_color)
+        half = mpatches.Wedge(center, radius, 90, 270, color=half_color)
         axes.add_artist(half)
     elif half_side == "right":
-        half = mpatches.Wedge(center, radius, 270, 90, ec="none")
-        half.set(color=half_color)
+        half = mpatches.Wedge(center, radius, 270, 90, color=half_color)
         axes.add_artist(half)
     elif half_side is None:
         pass
@@ -196,8 +203,9 @@ def draw_moon(axes, f, direction, light="white", dark="black", eps=1.25e-2):
         raise ValueError(f"bad half: {half}")
 
     if ellipse_color is not None:
-        artist = mpatches.Ellipse(center, 2 * radius * (2 * f - 1), 2 * radius)
-        artist.set(color=ellipse_color)
-        axes.add_artist(artist)
+        ellipse = mpatches.Ellipse(
+            center, 2 * radius * (2 * f - 1), 2 * radius, color=ellipse_color
+        )
+        axes.add_artist(ellipse)
 
     return None
