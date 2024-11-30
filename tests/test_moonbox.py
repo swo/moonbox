@@ -3,7 +3,7 @@ import pytest
 import moonbox
 import datetime
 import json
-import tinydb
+import sqlite3
 
 
 class MockRequest:
@@ -18,41 +18,54 @@ class MockRequest:
 
 
 class MockSession:
-    def __init__(self, mock_data_path="tests/data/mock.json", verbose=True):
+    def __init__(self, mock_data_path="tests/data/mock.db", verbose=True):
         self.mock_data_path = mock_data_path
+        self.con = sqlite3.connect(self.mock_data_path)
+        self.cur = self.con.cursor()
+        self.db_name = "mock"
 
-        self.db = tinydb.TinyDB(self.mock_data_path)
-        self.Q = tinydb.Query()
+        self.initialize_db()
 
         self.verbose = verbose
 
-    def update_mock_data(self, key, datum):
-        self.cache[key] = datum
-
-        with open(self.mock_data_path, "w") as f:
-            json.dump(self.cache, f)
+    def initialize_db(self):
+        results = self.cur.execute("SELECT name FROM sqlite_master").fetchall()
+        if len(results) == 0:
+            self.cur.execute(f"CREATE TABLE {self.db_name} (key TEXT, datum TEXT)")
+        elif len(results) == 1 and results[0][0] == self.db_name:
+            pass
+        else:
+            raise RuntimeError
 
     def get(self, url, params):
         key = self.cache_key(url, params)
 
-        results = self.db.search(self.Q.key == key)
+        results = self.cur.execute(
+            "SELECT datum FROM mock WHERE key=?", (key,)
+        ).fetchall()
         if len(results) == 0:
+            # get the data from the server
             if self.verbose:
                 print(f"Requesting '{url}' with {params}")
 
             request = requests.get(url, params=params)
             request.raise_for_status()
             datum = request.json()
-            self.db.insert({"key": key, "datum": datum})
+
+            # insert into the database
+            self.cur.execute("INSERT INTO mock VALUES (?, ?)", (key, json.dumps(datum)))
+            self.con.commit()
+
             return MockRequest(datum)
         elif len(results) == 1:
-            return MockRequest(results[0].datum)
+            datum = json.loads(results[0][0])
+            return MockRequest(datum)
         else:
             raise RuntimeError
 
     @staticmethod
     def cache_key(url: str, params: dict):
-        return (url, tuple(sorted(params.items())))
+        return str((url, tuple(sorted(params.items()))))
 
 
 @pytest.fixture
