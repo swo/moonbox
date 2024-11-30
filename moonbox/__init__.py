@@ -1,8 +1,8 @@
 import requests
-import json
 import datetime
 import matplotlib.axes
 import matplotlib.patches as mpatches
+import re
 
 """Lat/long for Washington, DC"""
 coords_dc = "38.889444,-77.035278"
@@ -23,19 +23,16 @@ def hm(x: datetime.datetime) -> str:
     return x.strftime("%H:%M")
 
 
-def get_usno(url, params, session=None):
-    if session is None:
-        request = requests.get(url, params=params)
-    else:
-        request = session.get(url, params=params)
-
+def get_usno(url, params, session: requests.Session):
+    request = session.get(url, params=params)
     request.raise_for_status()
+    return request.json()
 
-    return json.loads(request.content)
 
-
-def get_oneday(date=ymd(now()), coords=coords_dc, tz=-5, session=None):
+def get_oneday(date: str, session: requests.Session, coords=coords_dc, tz=-5):
     url = "https://aa.usno.navy.mil/api/rstt/oneday"
+    # date should be in ISO format
+    assert re.match(r"^\d{4}-\d{2}-\d{2}$", date)
     params = {"date": date, "coords": coords, "tz": tz}
     return get_usno(url, params, session)
 
@@ -58,7 +55,7 @@ def parse_oneday(data):
     return times | {"phase": phase, "illumination": illumination}
 
 
-def get_celnav(date=ymd(now()), time=hm(now()), coords=coords_dc, session=None):
+def get_celnav(date: str, time: str, session: requests.Session, coords=coords_dc):
     url = "https://aa.usno.navy.mil/api/celnav"
     params = {"date": date, "time": time, "coords": coords}
     return get_usno(url, params, session)
@@ -66,7 +63,6 @@ def get_celnav(date=ymd(now()), time=hm(now()), coords=coords_dc, session=None):
 
 def parse_celnav(data):
     # check the day, month, etc.
-    # data['properties']['day']
 
     objects = data["properties"]["data"]
     object_names = [x["object"] for x in objects]
@@ -87,27 +83,29 @@ def parse_celnav(data):
     }
 
 
-def get_phases(year=now().year, session=None):
+def get_phases(year: int = now().year, session: requests.Session = None) -> list:
+    return _parse_phases(_get_phases_raw(year, session))
+
+
+def _get_phases_raw(year: int, session: requests.Session) -> dict:
     url = "https://aa.usno.navy.mil/api/moon/phases/year"
     params = {"year": str(year)}
     return get_usno(url, params, session)
 
 
-def parse_phases(data):
+def _parse_phases(data: dict) -> list:
     phases = data["phasedata"]
     assert len(phases) == data["numphases"]
-    # check year
-    # assert phases[0]['year'] ==
-    return [parse_phase(x) for x in phases]
+    return [_parse_phase(x) for x in phases]
 
 
-def parse_phase(x):
+def _parse_phase(x: dict) -> dict:
     time_parts = x["time"].split(":")
     assert len(time_parts) == 2
     hour, minute = time_parts
     return {
         "phase": x["phase"],
-        "date": datetime.datetime(
+        "datetime": datetime.datetime(
             x["year"], x["month"], x["day"], int(hour), int(minute)
         ),
     }
@@ -209,3 +207,57 @@ def draw_moon(
         axes.add_artist(ellipse)
 
     return None
+
+
+def get_calendar(year: int, session: requests.Session):
+    # get all of this year's new moons, plus the last of last year
+    # and the first of next year
+    new_moons = (
+        [_get_new_moons(year - 1, session)[-1]]
+        + _get_new_moons(year, session)
+        + [_get_new_moons(year + 1, session)[0]]
+    )
+
+    # get all the dates from the first to the last new moon
+    all_dates = date_range(
+        new_moons[0]["datetime"].date(), new_moons[-1]["datetime"].date()
+    )
+
+    # get the celnav data for each date
+    data = {
+        date: parse_oneday(get_oneday(date.isoformat(), session=session))
+        for date in all_dates
+    }
+
+    # reorganize data into a list, with information about lunar month and day
+    lunar_month = None
+    lunar_day = None
+    calendar = []
+    for date in all_dates:
+        datum = data[date]
+        if lunar_month is None:
+            lunar_month = 0
+            lunar_day = 0
+        elif datum["phase"] == "New Moon":
+            lunar_month += 1
+            lunar_day = 0
+        else:
+            lunar_day += 1
+
+        if date.year == year:
+            new_datum = datum | {
+                "date": date,
+                "lunar_month": lunar_month,
+                "lunar_day": lunar_day,
+            }
+            calendar.append(new_datum)
+
+    return calendar
+
+
+def _get_new_moons(year: int, session: requests.Session):
+    return [x for x in get_phases(year, session) if x["phase"] == "New Moon"]
+
+
+def date_range(start: datetime.date, end: datetime.date) -> list[datetime.date]:
+    return [start + datetime.timedelta(days=x) for x in range((end - start).days + 1)]
