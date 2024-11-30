@@ -209,7 +209,7 @@ def draw_moon(
     return None
 
 
-def get_calendar(year: int, session: requests.Session):
+def calendar(year: int, session: requests.Session):
     # get all of this year's new moons, plus the last of last year
     # and the first of next year
     new_moons = (
