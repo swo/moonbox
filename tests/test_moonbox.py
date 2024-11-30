@@ -203,6 +203,14 @@ def test_date_range():
 
 
 @pytest.mark.slow
+def test_get_new_moons(mock_session):
+    current = moonbox._get_new_moons(year=2024, session=mock_session)
+    assert current[0] == datetime.datetime(2024, 1, 11, 11, 57)
+    assert current[-1] == datetime.datetime(2024, 12, 30, 22, 27)
+    assert len(current) == 13
+
+
+@pytest.mark.slow
 def test_calendar(mock_session):
     c = moonbox.calendar(2024, session=mock_session)
 
@@ -224,7 +232,15 @@ def test_calendar(mock_session):
     # all lunar months (except the first and last, which are
     # cross-year partial months) should have 29 or 30 days
     lunar_months = set([x["lunar_month"] for x in c])
+
+    # if a lunar month is at most 30 days, then there must be at least 12 in a
+    # 365-day year
+    assert len(lunar_months) >= 12
+
     good_months = [x for x in lunar_months if x not in [0, max(lunar_months)]]
 
     for month in good_months:
         assert len([x for x in c if x["lunar_month"] == month]) in [29, 30]
+
+    for month in [0, max(lunar_months)]:
+        assert len([x for x in c if x["lunar_month"] == month]) <= 30

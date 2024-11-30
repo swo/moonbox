@@ -212,16 +212,16 @@ def draw_moon(
 def calendar(year: int, session: requests.Session):
     # get all of this year's new moons, plus the last of last year
     # and the first of next year
-    new_moons = (
+    new_moon_datetimes = (
         [_get_new_moons(year - 1, session)[-1]]
         + _get_new_moons(year, session)
         + [_get_new_moons(year + 1, session)[0]]
     )
 
+    new_moon_dates = [x.date() for x in new_moon_datetimes]
+
     # get all the dates from the first to the last new moon
-    all_dates = date_range(
-        new_moons[0]["datetime"].date(), new_moons[-1]["datetime"].date()
-    )
+    all_dates = date_range(new_moon_dates[0], new_moon_dates[-1])
 
     # get the celnav data for each date
     data = {
@@ -238,7 +238,7 @@ def calendar(year: int, session: requests.Session):
         if lunar_month is None:
             lunar_month = 0
             lunar_day = 0
-        elif datum["phase"] == "New Moon":
+        elif date in new_moon_dates:
             lunar_month += 1
             lunar_day = 0
         else:
@@ -255,8 +255,10 @@ def calendar(year: int, session: requests.Session):
     return calendar
 
 
-def _get_new_moons(year: int, session: requests.Session):
-    return [x for x in get_phases(year, session) if x["phase"] == "New Moon"]
+def _get_new_moons(year: int, session: requests.Session) -> list[datetime.datetime]:
+    return [
+        x["datetime"] for x in get_phases(year, session) if x["phase"] == "New Moon"
+    ]
 
 
 def date_range(start: datetime.date, end: datetime.date) -> list[datetime.date]:
